@@ -32,7 +32,7 @@ def query(city, **kwargs):
 
     return result
 
-def calc(lat_str, lon_str):
+def calc(lat_str, lon_str, **kwargs):
     def noon_utc_today():
         now_local = datetime.datetime.now()
         noon_local = datetime.datetime(now_local.year, now_local.month, now_local.day, 12)
@@ -40,7 +40,7 @@ def calc(lat_str, lon_str):
         noon_utc = datetime.datetime.utcfromtimestamp(noon_local_ts)
         return noon_utc
 
-    def calc_up_down(sun, obs, horizon):
+    def calc_up_down(sun, obs, horizon, kwargs):
         obs.horizon = horizon
         use_center = False if horizon == "0" else True
         up = None
@@ -56,6 +56,16 @@ def calc(lat_str, lon_str):
         except (ephem.NeverUpError, ephem.AlwaysUpError):
             pass
 
+        begin_ofs = 0.0
+        if "begin_ofs" in kwargs:
+            begin_ofs = kwargs["begin_ofs"]
+        up += datetime.timedelta(seconds=begin_ofs)
+
+        end_ofs = 0.0
+        if "end_ofs" in kwargs:
+            end_ofs = kwargs["end_ofs"]
+        down += datetime.timedelta(seconds=end_ofs)
+
         return (up, down)
 
     times = []
@@ -70,12 +80,13 @@ def calc(lat_str, lon_str):
     obs.lon = lon
     sun = ephem.Sun()
 
-    times.append(calc_up_down(sun, obs, "0"))
-    times.append(calc_up_down(sun, obs, "-6"))
-    times.append(calc_up_down(sun, obs, "-12"))
-    times.append(calc_up_down(sun, obs, "-18"))
+    times.append(calc_up_down(sun, obs, "0", kwargs))
+    times.append(calc_up_down(sun, obs, "-6", kwargs))
+    times.append(calc_up_down(sun, obs, "-12", kwargs))
+    times.append(calc_up_down(sun, obs, "-18", kwargs))
 
     return times
+
 
 def report(times):
     response = \
@@ -98,6 +109,7 @@ def format_time(dtime, **kwargs):
         return dtime.strftime("%H%M %b %d, %Y")
     return dtime.strftime("%Y-%m-%d %H:%M:%S")
 
+
 def handle_args():
     parser = argparse.ArgumentParser(description="A little app that calculates sun rise/set and twilight times")
     subparsers = parser.add_subparsers(help='commands')
@@ -118,6 +130,8 @@ def handle_args():
     calc_parser.add_argument("--astronomical-begin", action="store_true", default=False, help="Output astronomical twilight begin time")
     calc_parser.add_argument("--astronomical-end", action="store_true", default=False, help="Output astronomical twilight end time")
     calc_parser.add_argument("--at-format", action="store_true", default=False, help="Output times in `at(1)' format")
+    calc_parser.add_argument("--begin-ofs", action="store", type=float, default=0.0, help="Offset in seconds to add to calculated begin time")
+    calc_parser.add_argument("--end-ofs", action="store", type=float, default=0.0, help="Offset in seconds to add to calculated end time")
 
     query_parser = subparsers.add_parser("query", help="Query city database")
     query_parser.add_argument("city", type=str, help="City to search for (Internet connection required)")
@@ -128,7 +142,10 @@ def handle_args():
         print(query(parsed_args.city))
 
     elif hasattr(parsed_args, "lat"):
-        times = calc(parsed_args.lat, parsed_args.lon)
+        begin_ofs = parsed_args.begin_ofs
+        end_ofs = parsed_args.end_ofs
+        times = calc(parsed_args.lat, parsed_args.lon, begin_ofs=begin_ofs, end_ofs=end_ofs)
+
         show_report = True
         at_format = parsed_args.at_format
 
