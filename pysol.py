@@ -7,10 +7,14 @@ A little app that show sun rise/set and twilight times.
 import argparse
 import math
 import datetime
+import sys
 
 import ephem
 import ephem.cities
 
+def fatal(text):
+    print(sys.argv[0] + ": " + text)
+    sys.exit(1)
 
 def query(city, **kwargs):
     result = ""
@@ -34,10 +38,19 @@ def query(city, **kwargs):
 
 def calc(lat_str, lon_str, **kwargs):
     def noon_utc_today():
-        now_local = datetime.datetime.now()
-        noon_local = datetime.datetime(now_local.year, now_local.month, now_local.day, 12)
+        date = kwargs["date"]
+        if date is not None:
+            try:
+                date_local = datetime.datetime.strptime(date, "%Y-%m-%d")
+            except ValueError as ve:
+                fatal("Invalid date given: " + date)
+        else:
+            date_local = datetime.datetime.now()
+
+        noon_local = datetime.datetime(date_local.year, date_local.month, date_local.day, 12)
         noon_local_ts = noon_local.timestamp()
         noon_utc = datetime.datetime.utcfromtimestamp(noon_local_ts)
+
         return noon_utc
 
     def calc_up_down(sun, obs, horizon, kwargs):
@@ -110,7 +123,7 @@ def format_time(dtime, **kwargs):
     return dtime.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def handle_args():
+def main():
     parser = argparse.ArgumentParser(description="A little app that calculates sun rise/set and twilight times")
     subparsers = parser.add_subparsers(help='commands')
 
@@ -121,6 +134,7 @@ def handle_args():
     calc_parser = subparsers.add_parser("calc", help="Calculate solar rise/set times")
     calc_parser.add_argument("--lat", action="store", type=float, required=True, help="Location latitude> (degrees)")
     calc_parser.add_argument("--lon", action="store", type=float, required=True, help="Location longitude> (degrees)")
+    calc_parser.add_argument("--date", action="store", type=str, default=None, help="Calculate for given date YYYY-MM-DD instead of today")
     calc_parser.add_argument("--rise", action="store_true", default=False, help="Output sun rise time")
     calc_parser.add_argument("--set", action="store_true", default=False, help="Output sun set time")
     calc_parser.add_argument("--civil-begin", action="store_true", default=False, help="Output civil twilight begin time")
@@ -144,7 +158,9 @@ def handle_args():
     elif hasattr(parsed_args, "lat"):
         begin_ofs = parsed_args.begin_ofs
         end_ofs = parsed_args.end_ofs
-        times = calc(parsed_args.lat, parsed_args.lon, begin_ofs=begin_ofs, end_ofs=end_ofs)
+        date = parsed_args.date
+
+        times = calc(parsed_args.lat, parsed_args.lon, begin_ofs=begin_ofs, end_ofs=end_ofs, date=date)
 
         show_report = True
         at_format = parsed_args.at_format
@@ -182,12 +198,8 @@ def handle_args():
 
 
 if __name__ == "__main__": #pragma: no cover
-
-    # Now start app.
     try:
-        _ = handle_args()
+        main()
 
     finally:
         pass
-
-
