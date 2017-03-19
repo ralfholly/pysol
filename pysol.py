@@ -37,25 +37,24 @@ def query(city, **kwargs):
     return result
 
 def calc(lat_str, lon_str, **kwargs):
-    def noon_utc_today():
+    def noon_in_utc():
         date = kwargs["date"]
         if date is not None:
             try:
                 date_local = datetime.datetime.strptime(date, "%Y-%m-%d")
-            except ValueError as ve:
+            except ValueError:
                 fatal("Invalid date given: " + date)
         else:
             date_local = datetime.datetime.now()
 
         noon_local = datetime.datetime(date_local.year, date_local.month, date_local.day, 12)
         noon_local_ts = noon_local.timestamp()
-        noon_utc = datetime.datetime.utcfromtimestamp(noon_local_ts)
+        noon_in_utc = datetime.datetime.utcfromtimestamp(noon_local_ts)
 
-        return noon_utc
+        return noon_in_utc
 
-    def calc_up_down(sun, obs, horizon, kwargs):
+    def calc_up_down(sun, obs, horizon, use_center, kwargs):
         obs.horizon = horizon
-        use_center = False if horizon == "0" else True
         up = None
         down = None
 
@@ -81,22 +80,26 @@ def calc(lat_str, lon_str, **kwargs):
 
         return (up, down)
 
-    times = []
-
     lat = math.radians(float(lat_str))
     lon = math.radians(float(lon_str))
 
-    noon = noon_utc_today()
+    noon = noon_in_utc()
     obs = ephem.Observer()
     obs.date = noon
     obs.lat = lat
     obs.lon = lon
     sun = ephem.Sun()
 
-    times.append(calc_up_down(sun, obs, "0", kwargs))
-    times.append(calc_up_down(sun, obs, "-6", kwargs))
-    times.append(calc_up_down(sun, obs, "-12", kwargs))
-    times.append(calc_up_down(sun, obs, "-18", kwargs))
+    times = []
+
+    horizon = kwargs["horizon"]
+    if horizon is not None:
+        times.append(calc_up_down(sun, obs, str(horizon), True, kwargs))
+    else:
+        times.append(calc_up_down(sun, obs, "0", False, kwargs))
+    times.append(calc_up_down(sun, obs, "-6", True, kwargs))
+    times.append(calc_up_down(sun, obs, "-12", True, kwargs))
+    times.append(calc_up_down(sun, obs, "-18", True, kwargs))
 
     return times
 
@@ -122,8 +125,7 @@ def format_time(dtime, **kwargs):
         return dtime.strftime("%H%M %b %d, %Y")
     return dtime.strftime("%Y-%m-%d %H:%M:%S")
 
-
-def main():
+def setup_argparse():
     parser = argparse.ArgumentParser(description="A little app that calculates sun rise/set and twilight times")
     subparsers = parser.add_subparsers(help='commands')
 
@@ -135,6 +137,7 @@ def main():
     calc_parser.add_argument("--lat", action="store", type=float, required=True, help="Location latitude> (degrees)")
     calc_parser.add_argument("--lon", action="store", type=float, required=True, help="Location longitude> (degrees)")
     calc_parser.add_argument("--date", action="store", type=str, default=None, help="Calculate for given date YYYY-MM-DD instead of today")
+    calc_parser.add_argument("--horizon", action="store", type=float, default=None, help="Calculate rise/set for given height of center of sun above horizon")
     calc_parser.add_argument("--rise", action="store_true", default=False, help="Output sun rise time")
     calc_parser.add_argument("--set", action="store_true", default=False, help="Output sun set time")
     calc_parser.add_argument("--civil-begin", action="store_true", default=False, help="Output civil twilight begin time")
@@ -150,6 +153,11 @@ def main():
     query_parser = subparsers.add_parser("query", help="Query city database")
     query_parser.add_argument("city", type=str, help="City to search for (Internet connection required)")
 
+    return parser
+
+
+def main():
+    parser = setup_argparse()
     parsed_args = parser.parse_args()
 
     if hasattr(parsed_args, "city"):
@@ -159,8 +167,9 @@ def main():
         begin_ofs = parsed_args.begin_ofs
         end_ofs = parsed_args.end_ofs
         date = parsed_args.date
+        horizon = parsed_args.horizon
 
-        times = calc(parsed_args.lat, parsed_args.lon, begin_ofs=begin_ofs, end_ofs=end_ofs, date=date)
+        times = calc(parsed_args.lat, parsed_args.lon, begin_ofs=begin_ofs, end_ofs=end_ofs, date=date, horizon=horizon)
 
         show_report = True
         at_format = parsed_args.at_format
