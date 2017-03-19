@@ -38,14 +38,17 @@ def query(city, **kwargs):
 
 def calc(lat_str, lon_str, **kwargs):
     def noon_in_utc():
+        date_local = datetime.datetime.now()
+
         date = kwargs["date"]
         if date is not None:
             try:
                 date_local = datetime.datetime.strptime(date, "%Y-%m-%d")
             except ValueError:
-                fatal("Invalid date given: " + date)
-        else:
-            date_local = datetime.datetime.now()
+                try:
+                    date_local = date_local + datetime.timedelta(days=int(date))
+                except ValueError:
+                    fatal("Invalid date given: " + date)
 
         noon_local = datetime.datetime(date_local.year, date_local.month, date_local.day, 12)
         noon_local_ts = noon_local.timestamp()
@@ -71,7 +74,8 @@ def calc(lat_str, lon_str, **kwargs):
         begin_ofs = 0.0
         if "begin_ofs" in kwargs:
             begin_ofs = kwargs["begin_ofs"]
-        up += datetime.timedelta(seconds=begin_ofs)
+        dd = datetime.timedelta(seconds=begin_ofs)
+        up += dd
 
         end_ofs = 0.0
         if "end_ofs" in kwargs:
@@ -125,6 +129,7 @@ def format_time(dtime, **kwargs):
         return dtime.strftime("%H%M %b %d, %Y")
     return dtime.strftime("%Y-%m-%d %H:%M:%S")
 
+
 def setup_argparse():
     parser = argparse.ArgumentParser(description="A little app that calculates sun rise/set and twilight times")
     subparsers = parser.add_subparsers(help='commands')
@@ -136,7 +141,7 @@ def setup_argparse():
     calc_parser = subparsers.add_parser("calc", help="Calculate solar rise/set times")
     calc_parser.add_argument("--lat", action="store", type=float, required=True, help="Location latitude> (degrees)")
     calc_parser.add_argument("--lon", action="store", type=float, required=True, help="Location longitude> (degrees)")
-    calc_parser.add_argument("--date", action="store", type=str, default=None, help="Calculate for given date YYYY-MM-DD instead of today")
+    calc_parser.add_argument("--date", action="store", type=str, default=None, help="Calculate for given date (YYYY-MM-DD) or days from today (+/-N) instead of today")
     calc_parser.add_argument("--horizon", action="store", type=float, default=None, help="Calculate rise/set for given height of center of sun above horizon")
     calc_parser.add_argument("--rise", action="store_true", default=False, help="Output sun rise time")
     calc_parser.add_argument("--set", action="store_true", default=False, help="Output sun set time")
@@ -207,8 +212,4 @@ def main():
 
 
 if __name__ == "__main__": #pragma: no cover
-    try:
-        main()
-
-    finally:
-        pass
+    main()
