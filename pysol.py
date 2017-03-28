@@ -126,7 +126,7 @@ def format_time(dtime, **kwargs):
     if dtime is None:
         return "-"
     if "at_format" in kwargs and kwargs["at_format"]:
-        return dtime.strftime("%H%M %b %d, %Y")
+        return dtime.strftime("%H%M %Y-%m-%d")
     return dtime.strftime("%Y-%m-%d %H:%M:%S")
 
 
