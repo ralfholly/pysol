@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
 """
-A little app that show sun rise/set and twilight times.
+A little app that calculates sun rise/set and twilight times.
+
+Copyright (c) 2017 Ralf Holly. See LICENSE file.
 """
 
 import argparse
@@ -15,6 +17,7 @@ import ephem.cities
 def fatal(text):
     print(sys.argv[0] + ": " + text)
     sys.exit(1)
+
 
 def query(city, **kwargs):
     result = ""
@@ -30,11 +33,12 @@ def query(city, **kwargs):
     lon_str = str(math.degrees(obs.lon))
 
     if "short" not in kwargs:
-        result += obs.name + "\n" + "Latitude:  " + lat_str + "\n" + "Longtitude: " + lon_str
+        result += obs.name + "\n" + "Latitude:  " + lat_str + "\n" + "Longitude: " + lon_str
     else:
         result = lat_str + ":" + lon_str
 
     return result
+
 
 def calc(lat_str, lon_str, **kwargs):
     def noon_in_utc():
@@ -55,6 +59,7 @@ def calc(lat_str, lon_str, **kwargs):
         noon_in_utc = datetime.datetime.utcfromtimestamp(noon_local_ts)
 
         return noon_in_utc
+
 
     def calc_up_down(sun, obs, horizon, use_center, kwargs):
         obs.horizon = horizon
@@ -83,6 +88,7 @@ def calc(lat_str, lon_str, **kwargs):
         down += datetime.timedelta(seconds=end_ofs)
 
         return (up, down)
+
 
     lat = math.radians(float(lat_str))
     lon = math.radians(float(lon_str))
