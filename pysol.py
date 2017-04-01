@@ -76,16 +76,18 @@ def calc(lat_str, lon_str, **kwargs):
         except (ephem.NeverUpError, ephem.AlwaysUpError):
             pass
 
-        begin_ofs = 0.0
-        if "begin_ofs" in kwargs:
-            begin_ofs = kwargs["begin_ofs"]
-        dd = datetime.timedelta(seconds=begin_ofs)
-        up += dd
+        if up is not None:
+            begin_ofs = 0.0
+            if "begin_ofs" in kwargs:
+                begin_ofs = kwargs["begin_ofs"]
+            dd = datetime.timedelta(seconds=begin_ofs)
+            up += dd
 
-        end_ofs = 0.0
-        if "end_ofs" in kwargs:
-            end_ofs = kwargs["end_ofs"]
-        down += datetime.timedelta(seconds=end_ofs)
+        if down is not None:
+            end_ofs = 0.0
+            if "end_ofs" in kwargs:
+                end_ofs = kwargs["end_ofs"]
+            down += datetime.timedelta(seconds=end_ofs)
 
         return (up, down)
 
